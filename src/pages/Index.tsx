@@ -11,6 +11,7 @@ const Index = () => {
   const [fundData, setFundData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [inputText, setInputText] = useState('');
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   useEffect(() => {
     // Load data from localStorage on component mount
@@ -66,6 +67,7 @@ const Index = () => {
 
       setFundData(data);
       setInputText('');
+      setDialogOpen(false); // Close dialog after successful conversion
       toast({
         title: "সফল",
         description: "টেক্সট ডাটা কনভার্ট করা হয়েছে",
@@ -129,7 +131,7 @@ const Index = () => {
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold">স্কুল ডেভেলপমেন্ট ফান্ড ড্যাশবোর্ড</h1>
           <div className="flex gap-4">
-            <Dialog>
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline">টেক্সট ডাটা ইনপুট</Button>
               </DialogTrigger>
