@@ -5,8 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "@/components/ui/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import ExcelExport from '../components/ExcelExport';
-import { parseTextData } from '../utils/parseTextData';
+import * as XLSX from 'xlsx';
 
 const Index = () => {
   const [fundData, setFundData] = useState([]);
@@ -14,38 +13,107 @@ const Index = () => {
   const [inputText, setInputText] = useState('');
 
   useEffect(() => {
-    // Simulating data fetch - in real app, this would be an API call
-    const sampleText = `মাই স্কুল ডেভেলপমেন্ট ফান্ড 
-    ০৩/১১/২০২৪ 
-    ইসলামী ব্যাংক একাউন্টে প্রাপ্ত 
-    ১০০,০০০/=`;
-    
-    const parsedData = parseTextData(sampleText);
-    setFundData(parsedData);
+    // Load data from localStorage on component mount
+    const savedData = localStorage.getItem('fundData');
+    if (savedData) {
+      setFundData(JSON.parse(savedData));
+    }
     setIsLoading(false);
   }, []);
 
-  const handleDataUpdate = (newData) => {
-    setFundData(newData);
-    toast({
-      title: "Success",
-      description: "Data updated successfully",
-    });
-  };
+  // Save to localStorage whenever fundData changes
+  useEffect(() => {
+    if (!isLoading) {
+      localStorage.setItem('fundData', JSON.stringify(fundData));
+    }
+  }, [fundData, isLoading]);
 
   const handleTextConvert = () => {
     try {
-      const parsedData = parseTextData(inputText);
-      setFundData(parsedData);
+      const lines = inputText.split('\n').map(line => line.trim()).filter(line => line);
+      const data = [];
+      let currentDate = '';
+      let currentEntry = null;
+
+      lines.forEach(line => {
+        const dateMatch = line.match(/^\d{2}\/\d{2}\/\d{4}/);
+        
+        if (dateMatch) {
+          if (currentEntry) {
+            data.push(currentEntry);
+          }
+          currentDate = dateMatch[0];
+          currentEntry = {
+            date: currentDate,
+            transactions: []
+          };
+        } else if (currentEntry) {
+          const amountMatch = line.match(/([\d,]+)\/=/);
+          if (amountMatch) {
+            const description = line.split(/[:=]/)[0].trim();
+            const amount = amountMatch[1];
+            currentEntry.transactions.push({
+              description,
+              amount
+            });
+          }
+        }
+      });
+
+      if (currentEntry) {
+        data.push(currentEntry);
+      }
+
+      setFundData(data);
       setInputText('');
       toast({
-        title: "Success",
-        description: "Text data converted successfully",
+        title: "সফল",
+        description: "টেক্সট ডাটা কনভার্ট করা হয়েছে",
       });
     } catch (error) {
       toast({
-        title: "Error",
-        description: "Failed to convert text data. Please check the format.",
+        title: "ত্রুটি",
+        description: "টেক্সট ডাটা কনভার্ট করতে ব্যর্থ হয়েছে",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const exportToExcel = () => {
+    try {
+      // Flatten the data for Excel export
+      const flatData = fundData.reduce((acc, dateEntry) => {
+        return acc.concat(
+          dateEntry.transactions.map(transaction => ({
+            Date: dateEntry.date,
+            Description: transaction.description,
+            Amount: transaction.amount
+          }))
+        );
+      }, []);
+
+      // Create worksheet
+      const ws = XLSX.utils.json_to_sheet(flatData);
+
+      // Add headers in Bengali
+      XLSX.utils.sheet_add_aoa(ws, [["তারিখ", "বিবরণ", "টাকার পরিমাণ"]], { origin: "A1" });
+
+      // Create workbook and append worksheet
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Fund Data");
+
+      // Save file
+      XLSX.writeFile(wb, "School_Development_Fund.xlsx");
+      
+      toast({
+        title: "সফল",
+        description: "এক্সেল ফাইল ডাউনলোড হয়েছে",
+      });
+    } catch (error) {
+      console.error("Export error:", error);
+      toast({
+        title: "ত্রুটি",
+        description: "এক্সেল ফাইল এক্সপোর্ট করতে ব্যর্থ",
         variant: "destructive",
       });
     }
@@ -80,13 +148,14 @@ const Index = () => {
                 </div>
               </DialogContent>
             </Dialog>
+            <Button 
+              onClick={exportToExcel}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              এক্সেল এক্সপোর্ট
+            </Button>
           </div>
         </div>
-
-        <ExcelExport 
-          data={fundData} 
-          onDataUpdate={handleDataUpdate}
-        />
 
         <div className="overflow-x-auto">
           <Table>
