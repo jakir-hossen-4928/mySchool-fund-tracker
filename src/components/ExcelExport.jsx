@@ -4,50 +4,46 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 
 const ExcelExport = ({ data, onDataUpdate }) => {
-  // Function to export data to Excel
   const exportToExcel = () => {
     try {
-      // Create worksheet from data
-      const ws = XLSX.utils.json_to_sheet(data);
+      // Flatten the data for Excel export
+      const flatData = data.reduce((acc, dateEntry) => {
+        return acc.concat(
+          dateEntry.transactions.map(transaction => ({
+            Date: dateEntry.date,
+            Description: transaction.description,
+            Amount: transaction.amount
+          }))
+        );
+      }, []);
 
-      // Add custom headers
-      XLSX.utils.sheet_add_aoa(ws, [["ID", "Student Name", "Class", "Fee Amount", "Payment Date", "Status"]], { origin: "A1" });
+      // Create worksheet
+      const ws = XLSX.utils.json_to_sheet(flatData);
+
+      // Add headers in Bengali
+      XLSX.utils.sheet_add_aoa(ws, [["তারিখ", "বিবরণ", "টাকার পরিমাণ"]], { origin: "A1" });
 
       // Create workbook and append worksheet
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Student Fees");
+      XLSX.utils.book_append_sheet(wb, ws, "Fund Data");
 
-      // Style the headers
-      const range = XLSX.utils.decode_range(ws['!ref']);
-      for (let C = range.s.c; C <= range.e.c; ++C) {
-        const address = XLSX.utils.encode_col(C) + "1";
-        if (!ws[address]) continue;
-        ws[address].s = {
-          font: { bold: true },
-          fill: { fgColor: { rgb: "FFFFAA00" } }
-        };
-      }
-
-      // Save the file
-      XLSX.writeFile(wb, "Student_Fees_Report.xlsx");
+      // Save file
+      XLSX.writeFile(wb, "School_Development_Fund.xlsx");
       
       toast({
-        title: "Success",
-        description: "Excel file has been downloaded successfully!",
-        duration: 3000,
+        title: "সফল",
+        description: "এক্সেল ফাইল ডাউনলোড হয়েছে",
       });
     } catch (error) {
       console.error("Export error:", error);
       toast({
-        title: "Error",
-        description: "Failed to export Excel file",
+        title: "ত্রুটি",
+        description: "এক্সেল ফাইল এক্সপোর্ট করতে ব্যর্থ",
         variant: "destructive",
-        duration: 3000,
       });
     }
   };
 
-  // Function to handle Excel file import for updates
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
     const reader = new FileReader();
@@ -61,21 +57,38 @@ const ExcelExport = ({ data, onDataUpdate }) => {
         // Convert Excel data to JSON
         const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 2 });
         
-        // Update the parent component with new data
-        onDataUpdate(jsonData);
+        // Transform the data back to our format
+        const transformedData = jsonData.reduce((acc, row) => {
+          const dateEntry = acc.find(entry => entry.date === row.Date);
+          if (dateEntry) {
+            dateEntry.transactions.push({
+              description: row.Description,
+              amount: row.Amount
+            });
+          } else {
+            acc.push({
+              date: row.Date,
+              transactions: [{
+                description: row.Description,
+                amount: row.Amount
+              }]
+            });
+          }
+          return acc;
+        }, []);
+        
+        onDataUpdate(transformedData);
         
         toast({
-          title: "Success",
-          description: "Data updated successfully from Excel!",
-          duration: 3000,
+          title: "সফল",
+          description: "ডেটা আপডেট করা হয়েছে",
         });
       } catch (error) {
         console.error("Import error:", error);
         toast({
-          title: "Error",
-          description: "Failed to import Excel file",
+          title: "ত্রুটি",
+          description: "এক্সেল ফাইল ইমপোর্ট করতে ব্যর্থ",
           variant: "destructive",
-          duration: 3000,
         });
       }
     };
@@ -86,12 +99,12 @@ const ExcelExport = ({ data, onDataUpdate }) => {
   };
 
   return (
-    <div className="flex gap-4 items-center mb-4">
+    <div className="flex gap-4 items-center mb-6">
       <Button 
         onClick={exportToExcel}
         className="bg-green-600 hover:bg-green-700"
       >
-        Export to Excel
+        এক্সেল এক্সপোর্ট
       </Button>
       
       <div className="relative">
@@ -100,7 +113,7 @@ const ExcelExport = ({ data, onDataUpdate }) => {
           onClick={() => document.getElementById('excel-upload').click()}
           className="bg-blue-600 hover:bg-blue-700 text-white"
         >
-          Update from Excel
+          এক্সেল থেকে আপডেট
         </Button>
         <input
           id="excel-upload"
