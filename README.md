@@ -13,8 +13,8 @@ A simple and efficient school fund tracker for managing contributions and expens
 ---
 
 ## 🛠️ Tech Stack:
-- **HTML** + **CSS**: For sleek and user-friendly design.
-- **JavaScript**: Powers the functionality.
+- **Tailwind CSS** + **Shadcn UI**: For sleek and user-friendly design.
+- **TypeScript**: Powers the functionality.
 
 ---
 
